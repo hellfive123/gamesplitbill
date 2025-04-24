@@ -31,7 +31,12 @@ const ProfitCalculator = () => {
     fetchTransactions();
 
     // Thiết lập subscription realtime
-    const channel = supabase.channel('db-changes');
+    const channel = supabase.channel('db-changes', {
+      config: {
+        broadcast: { self: true }, // Cho phép nhận sự kiện từ chính client này
+        presence: { key: '' },
+      },
+    });
     
     const subscription = channel
       .on(
@@ -41,18 +46,63 @@ const ProfitCalculator = () => {
           schema: 'public',
           table: 'transactions'
         },
-        (payload) => {
+        async (payload) => {
           console.log('Realtime change received:', payload);
           
-          // Cập nhật ngay lập tức khi có thay đổi
-          fetchTransactions();
+          // Xử lý theo từng loại sự kiện
+          switch (payload.eventType) {
+            case 'INSERT': {
+              // Thêm giao dịch mới vào state
+              const newTransaction: Transaction = {
+                id: payload.new.id,
+                created_at: new Date(payload.new.created_at),
+                original_price: payload.new.original_price,
+                selling_price: payload.new.selling_price,
+                profit: payload.new.profit,
+                profit_per_person: payload.new.profit_per_person,
+                note: payload.new.note
+              };
+              setTransactions(prev => [newTransaction, ...prev]);
+              break;
+            }
+              
+            case 'DELETE':
+              // Xóa giao dịch khỏi state
+              setTransactions(prev => 
+                prev.filter(t => t.id !== payload.old.id)
+              );
+              break;
+              
+            case 'UPDATE': {
+              // Cập nhật giao dịch trong state
+              const updatedTransaction: Transaction = {
+                id: payload.new.id,
+                created_at: new Date(payload.new.created_at),
+                original_price: payload.new.original_price,
+                selling_price: payload.new.selling_price,
+                profit: payload.new.profit,
+                profit_per_person: payload.new.profit_per_person,
+                note: payload.new.note
+              };
+              setTransactions(prev =>
+                prev.map(t => t.id === payload.new.id ? updatedTransaction : t)
+              );
+              break;
+            }
+              
+            default:
+              // Nếu không nhận diện được sự kiện, tải lại toàn bộ dữ liệu
+              await fetchTransactions();
+          }
         }
       )
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         console.log('Subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
+          // Tải lại dữ liệu khi subscription được thiết lập
+          await fetchTransactions();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.log('Subscription closed or error, attempting to reconnect...');
           // Thử kết nối lại sau 2 giây
@@ -93,10 +143,7 @@ const ProfitCalculator = () => {
           created_at: new Date(t.created_at)
         }));
         
-        // So sánh với dữ liệu hiện tại để tránh re-render không cần thiết
-        if (JSON.stringify(formattedData) !== JSON.stringify(transactions)) {
-          setTransactions(formattedData);
-        }
+        setTransactions(formattedData);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
