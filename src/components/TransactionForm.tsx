@@ -191,11 +191,11 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
 
       <Button 
         onClick={calculateProfit}
-        disabled={isLoading}
-        className="w-full"
+        disabled={!originalPrice || !sellingPrice || isLoading}
+        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all duration-300 group"
       >
-        <Plus className="w-4 h-4 mr-2" />
-        {isLoading ? "Đang thêm..." : "Thêm Giao Dịch"}
+        <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
+        {isLoading ? "Đang lưu..." : "Thêm Giao Dịch"}
       </Button>
     </div>
   );
