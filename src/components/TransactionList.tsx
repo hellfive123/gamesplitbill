@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Trash2, Edit2 } from "lucide-react";
+import { Trash2, Edit2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { normalizeVNDAmount } from '@/utils/currencyUtils';
@@ -30,6 +30,8 @@ interface TransactionStats {
   total: number;
 }
 
+const ITEMS_PER_PAGE = 10; // Số lượng giao dịch trên mỗi trang
+
 const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps) => {
   const { toast } = useToast();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -37,6 +39,22 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
   const [editSellingPrice, setEditSellingPrice] = useState("");
   const [editNote, setEditNote] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Tính toán tổng số trang
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+
+  // Lấy danh sách giao dịch cho trang hiện tại
+  const getCurrentPageTransactions = () => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return transactions.slice(startIndex, endIndex);
+  };
+
+  // Xử lý chuyển trang
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.min(Math.max(1, page), totalPages));
+  };
 
   const calculateStats = (): TransactionStats => {
     const now = new Date();
@@ -226,7 +244,7 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((t) => (
+            {getCurrentPageTransactions().map((t) => (
               <TableRow key={t.id} className="hover:bg-purple-50/50 dark:hover:bg-gray-800/50 transition-colors">
                 <TableCell className="whitespace-nowrap text-xs md:text-sm text-gray-600 dark:text-gray-400 py-2 md:py-4">
                   {new Date(t.created_at).toLocaleString('vi-VN', {
@@ -269,6 +287,79 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
             ))}
           </TableBody>
         </Table>
+
+        {/* Phân trang */}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between px-2">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Trang {currentPage} / {totalPages}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNumber;
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i;
+                  } else {
+                    pageNumber = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNumber}
+                      variant={currentPage === pageNumber ? "default" : "outline"}
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handlePageChange(pageNumber)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={isEditing} onOpenChange={setIsEditing}>
