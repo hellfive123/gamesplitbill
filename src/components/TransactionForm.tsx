@@ -65,84 +65,132 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
       const profit = selling - original;
       const profitPerPerson = profit / 2;
       
-      console.log('Attempting to save transaction with values:', {
-        original_price: original,
-        selling_price: selling,
-        profit,
-        profit_per_person: profitPerPerson,
-        note: note.trim() || null
-      });
-      
       setIsLoading(true);
       
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert({
-          original_price: original,
-          selling_price: selling,
-          profit,
-          profit_per_person: profitPerPerson,
-          note: note.trim() || null
-        })
-        .select();
+      try {
+        // Thêm timeout để tránh lỗi kết nối
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
 
-      if (error) {
-        console.error('Supabase error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert({
+            original_price: original,
+            selling_price: selling,
+            profit,
+            profit_per_person: profitPerPerson,
+            note: note.trim() || null
+          })
+          .select();
 
-        // Kiểm tra nếu lỗi là do kết nối nhưng giao dịch đã được lưu
-        if (error.message.includes('Failed to fetch')) {
-          // Thử tải lại danh sách giao dịch
-          onSuccess();
+        clearTimeout(timeoutId);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          
+          // Kiểm tra nếu lỗi là do kết nối
+          if (error.message.includes('Failed to fetch') || 
+              error.message.includes('Error: 201') || 
+              error.message.includes('ERR_INTERNET_DISCONNECTED') ||
+              error.message.includes('AbortError')) {
+            
+            // Kiểm tra xem có phải đang chạy localhost không
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+
+            if (isLocalhost) {
+              toast({
+                title: "Thông báo",
+                description: "Đang chạy trên localhost. Vui lòng kiểm tra kết nối internet và khởi động lại server nếu cần.",
+                variant: "default",
+              });
+            } else {
+              toast({
+                title: "Lỗi kết nối",
+                description: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet của bạn.",
+                variant: "destructive",
+              });
+            }
+            
+            // Thử tải lại danh sách giao dịch
+            onSuccess();
+            return;
+          }
+
+          let errorMessage = "Không thể lưu giao dịch";
+          
+          if (error.code === '23505') {
+            errorMessage = "Giao dịch đã tồn tại";
+          } else if (error.code === '23514') {
+            errorMessage = "Dữ liệu không hợp lệ";
+          } else if (error.code === '42501') {
+            errorMessage = "Không có quyền thực hiện thao tác này";
+          }
+
           toast({
-            title: "Thông báo",
-            description: "Giao dịch có thể đã được lưu. Đang tải lại danh sách...",
+            title: "Lỗi",
+            description: errorMessage,
+            variant: "destructive",
           });
           return;
         }
 
-        let errorMessage = "Không thể lưu giao dịch";
-        
-        if (error.code === '23505') {
-          errorMessage = "Giao dịch đã tồn tại";
-        } else if (error.code === '23514') {
-          errorMessage = "Dữ liệu không hợp lệ";
-        } else if (error.code === '42501') {
-          errorMessage = "Không có quyền thực hiện thao tác này";
-        }
-
-        toast({
-          title: "Lỗi",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Nếu có data trả về, giao dịch đã được lưu thành công
-      if (data && data.length > 0) {
-        console.log('Transaction saved successfully:', data);
-        
+        // Reset form và hiển thị thông báo thành công
         setOriginalPrice("");
         setSellingPrice("");
         setNote("");
+        
+        // Gọi onSuccess trước khi hiển thị thông báo
         onSuccess();
         
-        toast({
-          title: "Giao dịch thành công",
-          description: `Đã thêm giao dịch với lợi nhuận: ${profit.toLocaleString('vi-VN')} VNĐ`,
-        });
-      } else {
-        // Nếu không có data nhưng cũng không có lỗi, thử tải lại danh sách
-        onSuccess();
-        toast({
-          title: "Thông báo",
-          description: "Đang tải lại danh sách giao dịch...",
-        });
+        // Kiểm tra xem có phải đang chạy localhost không
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+
+        if (isLocalhost) {
+          toast({
+            title: "Giao dịch thành công (Localhost)",
+            description: `Đã thêm giao dịch với lợi nhuận: ${profit.toLocaleString('vi-VN')} VNĐ`,
+          });
+        } else {
+          toast({
+            title: "Giao dịch thành công",
+            description: `Đã thêm giao dịch với lợi nhuận: ${profit.toLocaleString('vi-VN')} VNĐ`,
+          });
+        }
+      } catch (error) {
+        console.error('Unexpected error:', error);
+        
+        // Kiểm tra nếu lỗi là do mất kết nối
+        if (error.message?.includes('ERR_INTERNET_DISCONNECTED') || 
+            error.message?.includes('Failed to fetch') ||
+            error.message?.includes('AbortError')) {
+          
+          const isLocalhost = window.location.hostname === 'localhost' || 
+                             window.location.hostname === '127.0.0.1';
+
+          if (isLocalhost) {
+            toast({
+              title: "Lỗi kết nối (Localhost)",
+              description: "Vui lòng kiểm tra kết nối internet và khởi động lại server nếu cần",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Lỗi kết nối",
+              description: "Vui lòng kiểm tra kết nối internet của bạn",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Lỗi không xác định",
+            description: "Đã xảy ra lỗi không mong muốn",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -151,8 +199,6 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
         description: "Đã xảy ra lỗi không mong muốn",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

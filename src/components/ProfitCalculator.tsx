@@ -42,10 +42,24 @@ const ProfitCalculator = () => {
         },
         (payload) => {
           console.log('Realtime change received:', payload);
-          fetchTransactions(); // Tải lại danh sách khi có thay đổi
+          
+          // Thêm delay nhỏ để đảm bảo dữ liệu đã được cập nhật
+          setTimeout(() => {
+            fetchTransactions();
+          }, 100);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime subscription established');
+        } else if (status === 'CLOSED') {
+          console.log('Realtime subscription closed');
+          // Thử kết nối lại sau 5 giây
+          setTimeout(() => {
+            subscription.subscribe();
+          }, 5000);
+        }
+      });
 
     // Cleanup subscription khi component unmount
     return () => {
@@ -150,7 +164,10 @@ const ProfitCalculator = () => {
               </div>
             </div>
 
-            <TransactionList transactions={filteredTransactions} />
+            <TransactionList 
+              transactions={filteredTransactions} 
+              onDeleteSuccess={fetchTransactions}
+            />
           </Card>
         )}
 
