@@ -31,8 +31,9 @@ const ProfitCalculator = () => {
     fetchTransactions();
 
     // Thiết lập subscription realtime
-    const subscription = supabase
-      .channel('transactions_changes')
+    const channel = supabase.channel('db-changes');
+    
+    const subscription = channel
       .on(
         'postgres_changes',
         {
@@ -43,27 +44,27 @@ const ProfitCalculator = () => {
         (payload) => {
           console.log('Realtime change received:', payload);
           
-          // Thêm delay nhỏ để đảm bảo dữ liệu đã được cập nhật
-          setTimeout(() => {
-            fetchTransactions();
-          }, 100);
+          // Cập nhật ngay lập tức khi có thay đổi
+          fetchTransactions();
         }
       )
       .subscribe((status) => {
+        console.log('Subscription status:', status);
+        
         if (status === 'SUBSCRIBED') {
-          console.log('Realtime subscription established');
-        } else if (status === 'CLOSED') {
-          console.log('Realtime subscription closed');
-          // Thử kết nối lại sau 5 giây
+          console.log('Successfully subscribed to changes');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.log('Subscription closed or error, attempting to reconnect...');
+          // Thử kết nối lại sau 2 giây
           setTimeout(() => {
-            subscription.subscribe();
-          }, 5000);
+            channel.subscribe();
+          }, 2000);
         }
       });
 
     // Cleanup subscription khi component unmount
     return () => {
-      subscription.unsubscribe();
+      channel.unsubscribe();
     };
   }, []);
 
@@ -75,19 +76,33 @@ const ProfitCalculator = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể tải dữ liệu giao dịch",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (data) {
-        setTransactions(data.map((t: any) => ({
+        // Chuyển đổi created_at thành Date object
+        const formattedData = data.map((t: any) => ({
           ...t,
           created_at: new Date(t.created_at)
-        })));
+        }));
+        
+        // So sánh với dữ liệu hiện tại để tránh re-render không cần thiết
+        if (JSON.stringify(formattedData) !== JSON.stringify(transactions)) {
+          setTransactions(formattedData);
+        }
       }
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('Unexpected error:', error);
       toast({
-        title: "Lỗi",
-        description: "Không thể tải dữ liệu giao dịch",
+        title: "Lỗi không xác định",
+        description: "Đã xảy ra lỗi khi tải dữ liệu",
         variant: "destructive",
       });
     } finally {
