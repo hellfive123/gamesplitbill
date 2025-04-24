@@ -39,29 +39,8 @@ const ProfitCalculator = () => {
     });
 
     const handleRealtimeChange = async (payload: any) => {
-      console.log('Realtime change received:', payload);
-      
-      try {
-        const { data, error } = await supabase
-          .from('transactions')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching transactions:', error);
-          return;
-        }
-
-        if (data) {
-          const formattedData = data.map((t: any) => ({
-            ...t,
-            created_at: new Date(t.created_at)
-          }));
-          setTransactions(formattedData);
-        }
-      } catch (error) {
-        console.error('Error in realtime update:', error);
-      }
+      console.log('Realtime change detected, reloading page...');
+      window.location.reload();
     };
     
     channel
