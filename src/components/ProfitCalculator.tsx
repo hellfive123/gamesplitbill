@@ -31,84 +31,59 @@ const ProfitCalculator = () => {
     fetchTransactions();
 
     // Thiết lập subscription realtime
-    const channel = supabase.channel('db-changes', {
+    const channel = supabase.channel('any', {
       config: {
-        broadcast: { self: true }, // Cho phép nhận sự kiện từ chính client này
+        broadcast: { self: true },
         presence: { key: '' },
       },
     });
+
+    const handleRealtimeChange = async (payload: any) => {
+      console.log('Realtime change received:', payload);
+      
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching transactions:', error);
+          return;
+        }
+
+        if (data) {
+          const formattedData = data.map((t: any) => ({
+            ...t,
+            created_at: new Date(t.created_at)
+          }));
+          setTransactions(formattedData);
+        }
+      } catch (error) {
+        console.error('Error in realtime update:', error);
+      }
+    };
     
-    const subscription = channel
+    channel
       .on(
         'postgres_changes',
         {
-          event: '*', // Lắng nghe tất cả các sự kiện (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'transactions'
         },
-        async (payload) => {
-          console.log('Realtime change received:', payload);
-          
-          // Xử lý theo từng loại sự kiện
-          switch (payload.eventType) {
-            case 'INSERT': {
-              // Thêm giao dịch mới vào state
-              const newTransaction: Transaction = {
-                id: payload.new.id,
-                created_at: new Date(payload.new.created_at),
-                original_price: payload.new.original_price,
-                selling_price: payload.new.selling_price,
-                profit: payload.new.profit,
-                profit_per_person: payload.new.profit_per_person,
-                note: payload.new.note
-              };
-              setTransactions(prev => [newTransaction, ...prev]);
-              break;
-            }
-              
-            case 'DELETE':
-              // Xóa giao dịch khỏi state
-              setTransactions(prev => 
-                prev.filter(t => t.id !== payload.old.id)
-              );
-              break;
-              
-            case 'UPDATE': {
-              // Cập nhật giao dịch trong state
-              const updatedTransaction: Transaction = {
-                id: payload.new.id,
-                created_at: new Date(payload.new.created_at),
-                original_price: payload.new.original_price,
-                selling_price: payload.new.selling_price,
-                profit: payload.new.profit,
-                profit_per_person: payload.new.profit_per_person,
-                note: payload.new.note
-              };
-              setTransactions(prev =>
-                prev.map(t => t.id === payload.new.id ? updatedTransaction : t)
-              );
-              break;
-            }
-              
-            default:
-              // Nếu không nhận diện được sự kiện, tải lại toàn bộ dữ liệu
-              await fetchTransactions();
-          }
-        }
+        handleRealtimeChange
       )
-      .subscribe(async (status) => {
+      .subscribe((status) => {
         console.log('Subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
-          // Tải lại dữ liệu khi subscription được thiết lập
-          await fetchTransactions();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.log('Subscription closed or error, attempting to reconnect...');
-          // Thử kết nối lại sau 2 giây
           setTimeout(() => {
             channel.subscribe();
-          }, 2000);
+          }, 1000);
         }
       });
 
@@ -137,12 +112,10 @@ const ProfitCalculator = () => {
       }
 
       if (data) {
-        // Chuyển đổi created_at thành Date object
         const formattedData = data.map((t: any) => ({
           ...t,
           created_at: new Date(t.created_at)
         }));
-        
         setTransactions(formattedData);
       }
     } catch (error) {
