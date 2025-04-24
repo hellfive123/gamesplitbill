@@ -28,63 +28,92 @@ const ProfitCalculator = () => {
   const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => {
-    console.log('Setting up realtime subscription...');
     fetchTransactions();
 
     // Thiết lập subscription realtime
-    const channel = supabase.channel('any', {
+    const channel = supabase.channel('db-changes', {
       config: {
-        broadcast: { self: true },
+        broadcast: { self: true }, // Cho phép nhận sự kiện từ chính client này
         presence: { key: '' },
       },
     });
-
-    const handleRealtimeChange = async (payload: any) => {
-      console.log('Realtime change detected:', payload);
-      console.log('Table:', payload.table);
-      console.log('Event:', payload.eventType);
-      console.log('New record:', payload.new);
-      console.log('Old record:', payload.old);
-      
-      // Thêm delay nhỏ trước khi reload để đảm bảo dữ liệu đã được cập nhật
-      setTimeout(() => {
-        console.log('Reloading page...');
-        window.location.reload();
-      }, 500);
-    };
     
-    channel
+    const subscription = channel
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*', // Lắng nghe tất cả các sự kiện (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'transactions'
         },
-        handleRealtimeChange
+        async (payload) => {
+          console.log('Realtime change received:', payload);
+          
+          // Xử lý theo từng loại sự kiện
+          switch (payload.eventType) {
+            case 'INSERT': {
+              // Thêm giao dịch mới vào state
+              const newTransaction: Transaction = {
+                id: payload.new.id,
+                created_at: new Date(payload.new.created_at),
+                original_price: payload.new.original_price,
+                selling_price: payload.new.selling_price,
+                profit: payload.new.profit,
+                profit_per_person: payload.new.profit_per_person,
+                note: payload.new.note
+              };
+              setTransactions(prev => [newTransaction, ...prev]);
+              break;
+            }
+              
+            case 'DELETE':
+              // Xóa giao dịch khỏi state
+              setTransactions(prev => 
+                prev.filter(t => t.id !== payload.old.id)
+              );
+              break;
+              
+            case 'UPDATE': {
+              // Cập nhật giao dịch trong state
+              const updatedTransaction: Transaction = {
+                id: payload.new.id,
+                created_at: new Date(payload.new.created_at),
+                original_price: payload.new.original_price,
+                selling_price: payload.new.selling_price,
+                profit: payload.new.profit,
+                profit_per_person: payload.new.profit_per_person,
+                note: payload.new.note
+              };
+              setTransactions(prev =>
+                prev.map(t => t.id === payload.new.id ? updatedTransaction : t)
+              );
+              break;
+            }
+              
+            default:
+              // Nếu không nhận diện được sự kiện, tải lại toàn bộ dữ liệu
+              await fetchTransactions();
+          }
+        }
       )
       .subscribe(async (status) => {
         console.log('Subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
-          // Test subscription
-          const { error } = await supabase.from('transactions').select('*').limit(1);
-          if (error) {
-            console.error('Error testing subscription:', error);
-          }
+          // Tải lại dữ liệu khi subscription được thiết lập
+          await fetchTransactions();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.error('Subscription closed or error, attempting to reconnect...');
+          console.log('Subscription closed or error, attempting to reconnect...');
+          // Thử kết nối lại sau 2 giây
           setTimeout(() => {
-            console.log('Attempting to resubscribe...');
             channel.subscribe();
-          }, 1000);
+          }, 2000);
         }
       });
 
     // Cleanup subscription khi component unmount
     return () => {
-      console.log('Cleaning up subscription...');
       channel.unsubscribe();
     };
   }, []);
@@ -108,10 +137,12 @@ const ProfitCalculator = () => {
       }
 
       if (data) {
+        // Chuyển đổi created_at thành Date object
         const formattedData = data.map((t: any) => ({
           ...t,
           created_at: new Date(t.created_at)
         }));
+        
         setTransactions(formattedData);
       }
     } catch (error) {
