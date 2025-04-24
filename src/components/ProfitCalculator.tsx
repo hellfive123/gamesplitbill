@@ -28,6 +28,7 @@ const ProfitCalculator = () => {
   const [dateFilter, setDateFilter] = useState("");
 
   useEffect(() => {
+    console.log('Setting up realtime subscription...');
     fetchTransactions();
 
     // Thiết lập subscription realtime
@@ -39,8 +40,17 @@ const ProfitCalculator = () => {
     });
 
     const handleRealtimeChange = async (payload: any) => {
-      console.log('Realtime change detected, reloading page...');
-      window.location.reload();
+      console.log('Realtime change detected:', payload);
+      console.log('Table:', payload.table);
+      console.log('Event:', payload.eventType);
+      console.log('New record:', payload.new);
+      console.log('Old record:', payload.old);
+      
+      // Thêm delay nhỏ trước khi reload để đảm bảo dữ liệu đã được cập nhật
+      setTimeout(() => {
+        console.log('Reloading page...');
+        window.location.reload();
+      }, 500);
     };
     
     channel
@@ -53,14 +63,20 @@ const ProfitCalculator = () => {
         },
         handleRealtimeChange
       )
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         console.log('Subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
+          // Test subscription
+          const { error } = await supabase.from('transactions').select('*').limit(1);
+          if (error) {
+            console.error('Error testing subscription:', error);
+          }
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.log('Subscription closed or error, attempting to reconnect...');
+          console.error('Subscription closed or error, attempting to reconnect...');
           setTimeout(() => {
+            console.log('Attempting to resubscribe...');
             channel.subscribe();
           }, 1000);
         }
@@ -68,6 +84,7 @@ const ProfitCalculator = () => {
 
     // Cleanup subscription khi component unmount
     return () => {
+      console.log('Cleaning up subscription...');
       channel.unsubscribe();
     };
   }, []);
