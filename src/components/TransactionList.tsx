@@ -211,27 +211,27 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
   };
 
   return (
-    <>
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Hôm nay</div>
-          <div className="text-2xl font-bold">{stats.today}</div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-4 gap-4">
+        <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Hôm nay</div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.today}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Tháng này</div>
-          <div className="text-2xl font-bold">{stats.thisMonth}</div>
+        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Tháng này</div>
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.thisMonth}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Năm nay</div>
-          <div className="text-2xl font-bold">{stats.thisYear}</div>
+        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Năm nay</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.thisYear}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Tổng cộng</div>
-          <div className="text-2xl font-bold">{stats.total}</div>
+        <div className="p-4 rounded-lg bg-pink-50 dark:bg-pink-900/20">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Tổng cộng</div>
+          <div className="text-2xl font-bold text-pink-600 dark:text-pink-400">{stats.total}</div>
         </div>
       </div>
 
-      <div className="overflow-x-auto -mx-4 md:mx-0">
+      <div className="rounded-md border">
         <Table className="rounded-xl overflow-hidden w-full">
           <TableHeader className="bg-purple-50 dark:bg-gray-800">
             <TableRow>
@@ -401,7 +401,7 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 
