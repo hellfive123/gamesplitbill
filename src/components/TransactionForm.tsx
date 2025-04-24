@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { PriceSuggestions } from "@/components/ui/price-suggestions";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -16,6 +17,8 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
   const [originalPrice, setOriginalPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [note, setNote] = useState("");
+  const [showOriginalSuggestions, setShowOriginalSuggestions] = useState(false);
+  const [showSellingSuggestions, setShowSellingSuggestions] = useState(false);
   const { toast } = useToast();
 
   const calculateProfit = async () => {
@@ -68,11 +71,7 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
       setIsLoading(true);
       
       try {
-        // Thêm timeout để tránh lỗi kết nối
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
-
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('transactions')
           .insert({
             original_price: original,
@@ -83,114 +82,26 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
           })
           .select();
 
-        clearTimeout(timeoutId);
+        if (error) throw error;
 
-        if (error) {
-          console.error('Supabase error:', error);
-          
-          // Kiểm tra nếu lỗi là do kết nối
-          if (error.message.includes('Failed to fetch') || 
-              error.message.includes('Error: 201') || 
-              error.message.includes('ERR_INTERNET_DISCONNECTED') ||
-              error.message.includes('AbortError')) {
-            
-            // Kiểm tra xem có phải đang chạy localhost không
-            const isLocalhost = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
-
-            if (isLocalhost) {
-              toast({
-                title: "Thông báo",
-                description: "Đang chạy trên localhost. Vui lòng kiểm tra kết nối internet và khởi động lại server nếu cần.",
-                variant: "default",
-              });
-            } else {
-              toast({
-                title: "Lỗi kết nối",
-                description: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet của bạn.",
-                variant: "destructive",
-              });
-            }
-            
-            // Thử tải lại danh sách giao dịch
-            onSuccess();
-            return;
-          }
-
-          let errorMessage = "Không thể lưu giao dịch";
-          
-          if (error.code === '23505') {
-            errorMessage = "Giao dịch đã tồn tại";
-          } else if (error.code === '23514') {
-            errorMessage = "Dữ liệu không hợp lệ";
-          } else if (error.code === '42501') {
-            errorMessage = "Không có quyền thực hiện thao tác này";
-          }
-
-          toast({
-            title: "Lỗi",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Reset form và hiển thị thông báo thành công
+        // Reset form
         setOriginalPrice("");
         setSellingPrice("");
         setNote("");
         
-        // Gọi onSuccess trước khi hiển thị thông báo
+        toast({
+          title: "Thành công",
+          description: "Đã thêm giao dịch mới",
+        });
+
         onSuccess();
-        
-        // Kiểm tra xem có phải đang chạy localhost không
-        const isLocalhost = window.location.hostname === 'localhost' || 
-                           window.location.hostname === '127.0.0.1';
-
-        if (isLocalhost) {
-          toast({
-            title: "Giao dịch thành công (Localhost)",
-            description: `Đã thêm giao dịch với lợi nhuận: ${profit.toLocaleString('vi-VN')} VNĐ`,
-          });
-        } else {
-          toast({
-            title: "Giao dịch thành công",
-            description: `Đã thêm giao dịch với lợi nhuận: ${profit.toLocaleString('vi-VN')} VNĐ`,
-          });
-        }
       } catch (error) {
-        console.error('Unexpected error:', error);
-        
-        // Kiểm tra nếu lỗi là do mất kết nối
-        if (error.message?.includes('ERR_INTERNET_DISCONNECTED') || 
-            error.message?.includes('Failed to fetch') ||
-            error.message?.includes('AbortError')) {
-          
-          const isLocalhost = window.location.hostname === 'localhost' || 
-                             window.location.hostname === '127.0.0.1';
-
-          if (isLocalhost) {
-            toast({
-              title: "Lỗi kết nối (Localhost)",
-              description: "Vui lòng kiểm tra kết nối internet và khởi động lại server nếu cần",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Lỗi kết nối",
-              description: "Vui lòng kiểm tra kết nối internet của bạn",
-              variant: "destructive",
-            });
-          }
-        } else {
-          toast({
-            title: "Lỗi không xác định",
-            description: "Đã xảy ra lỗi không mong muốn",
-            variant: "destructive",
-          });
-        }
-      } finally {
-        setIsLoading(false);
+        console.error('Supabase error:', error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể lưu giao dịch",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -199,52 +110,92 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
         description: "Đã xảy ra lỗi không mong muốn",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleOriginalPriceChange = (value: string) => {
+    setOriginalPrice(value);
+    setShowOriginalSuggestions(!!value && !isNaN(parseFloat(value)));
+  };
+
+  const handleSellingPriceChange = (value: string) => {
+    setSellingPrice(value);
+    setShowSellingSuggestions(!!value && !isNaN(parseFloat(value)));
   };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Giá gốc</label>
+        <div className="relative">
+          <label className="block text-sm font-medium mb-2">
+            Giá gốc (nghìn VNĐ)
+          </label>
           <Input
             type="number"
             value={originalPrice}
-            onChange={(e) => setOriginalPrice(e.target.value)}
+            onChange={(e) => handleOriginalPriceChange(e.target.value)}
+            onFocus={() => setShowOriginalSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowOriginalSuggestions(false), 200)}
             placeholder="Nhập giá gốc"
-            className="w-full focus:ring-2 focus:ring-purple-300 transition-all duration-300"
+            className="w-full"
           />
+          {showOriginalSuggestions && (
+            <PriceSuggestions
+              value={originalPrice}
+              onSelect={(value) => {
+                setOriginalPrice(value);
+                setShowOriginalSuggestions(false);
+              }}
+            />
+          )}
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Giá bán</label>
+
+        <div className="relative">
+          <label className="block text-sm font-medium mb-2">
+            Giá bán (nghìn VNĐ)
+          </label>
           <Input
             type="number"
             value={sellingPrice}
-            onChange={(e) => setSellingPrice(e.target.value)}
+            onChange={(e) => handleSellingPriceChange(e.target.value)}
+            onFocus={() => setShowSellingSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSellingSuggestions(false), 200)}
             placeholder="Nhập giá bán"
-            className="w-full focus:ring-2 focus:ring-pink-300 transition-all duration-300"
+            className="w-full"
           />
+          {showSellingSuggestions && (
+            <PriceSuggestions
+              value={sellingPrice}
+              onSelect={(value) => {
+                setSellingPrice(value);
+                setShowSellingSuggestions(false);
+              }}
+            />
+          )}
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Ghi chú</label>
+        <label className="block text-sm font-medium mb-2">
+          Ghi chú
+        </label>
         <Input
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Ghi chú về tài khoản (ví dụ: Tên game, level...)"
-          className="w-full focus:ring-2 focus:ring-purple-300 transition-all duration-300"
+          placeholder="Ghi chú về tài khoản"
+          className="w-full"
         />
       </div>
 
       <Button 
-        onClick={calculateProfit} 
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all duration-300 group"
-        disabled={!originalPrice || !sellingPrice || isLoading}
+        onClick={calculateProfit}
+        disabled={isLoading}
+        className="w-full"
       >
-        <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-        {isLoading ? "Đang lưu..." : "Thêm Giao Dịch"}
+        <Plus className="w-4 h-4 mr-2" />
+        {isLoading ? "Đang thêm..." : "Thêm Giao Dịch"}
       </Button>
     </div>
   );
