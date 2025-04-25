@@ -43,9 +43,9 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
         return;
       }
 
-      const original = normalizeVNDAmount(originalPrice);
-      const selling = normalizeVNDAmount(sellingPrice);
-      
+    const original = normalizeVNDAmount(originalPrice);
+    const selling = normalizeVNDAmount(sellingPrice);
+    
       if (isNaN(original) || isNaN(selling)) {
         console.error('Invalid input values:', { original, selling });
         toast({
@@ -64,32 +64,32 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
         });
         return;
       }
-      
-      const profit = selling - original;
-      const profitPerPerson = profit / 2;
-      
-      setIsLoading(true);
-      
-      try {
-        const { error } = await supabase
-          .from('transactions')
-          .insert({
-            original_price: original,
-            selling_price: selling,
-            profit,
-            profit_per_person: profitPerPerson,
-            note: note.trim() || null
+    
+    const profit = selling - original;
+    const profitPerPerson = profit / 2;
+    
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
+          original_price: original,
+          selling_price: selling,
+          profit,
+          profit_per_person: profitPerPerson,
+          note: note.trim() || null
           })
           .select();
 
-        if (error) throw error;
+      if (error) throw error;
 
         // Reset form
-        setOriginalPrice("");
-        setSellingPrice("");
-        setNote("");
-        
-        toast({
+      setOriginalPrice("");
+      setSellingPrice("");
+      setNote("");
+      
+      toast({
           title: "Thành công",
           description: "Đã thêm giao dịch mới",
         });
@@ -101,7 +101,7 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
           title: "Lỗi",
           description: "Không thể lưu giao dịch",
           variant: "destructive",
-        });
+      });
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -151,7 +151,7 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
             />
           )}
         </div>
-
+        
         <div className="relative">
           <label className="block text-sm font-medium mb-2">
             Giá bán (nghìn VNĐ)
@@ -190,7 +190,7 @@ const TransactionForm = ({ onSuccess, isLoading, setIsLoading }: TransactionForm
       </div>
 
       <Button 
-        onClick={calculateProfit}
+        onClick={calculateProfit} 
         disabled={!originalPrice || !sellingPrice || isLoading}
         className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 transition-all duration-300 group"
       >

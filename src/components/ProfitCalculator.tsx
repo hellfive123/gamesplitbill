@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import Statistics from './Statistics';
@@ -26,6 +26,7 @@ const ProfitCalculator = () => {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const [dateFilter, setDateFilter] = useState("");
+  const [resetDate, setResetDate] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -158,11 +159,23 @@ const ProfitCalculator = () => {
   };
 
   const calculateTotalForCuong = () => {
-    return transactions.reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
+    return transactions
+      .filter(t => !resetDate || t.created_at >= resetDate)
+      .reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
   };
 
   const calculateTotalForLong = () => {
-    return transactions.reduce((sum, t) => sum + t.profit_per_person, 0);
+    return transactions
+      .filter(t => !resetDate || t.created_at >= resetDate)
+      .reduce((sum, t) => sum + t.profit_per_person, 0);
+  };
+
+  const handleResetTotals = () => {
+    setResetDate(new Date());
+    toast({
+      title: "Đã reset tổng tiền",
+      description: "Tổng tiền Cường và Long đã được reset về 0",
+    });
   };
 
   const filteredTransactions = transactions.filter(t => {
@@ -222,6 +235,17 @@ const ProfitCalculator = () => {
                     {calculateTotalForLong().toLocaleString('vi-VN')} VNĐ
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">(Lời/2)</p>
+                </div>
+                <div className="col-span-2 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetTotals}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reset Tổng Tiền
+                  </Button>
                 </div>
               </div>
             </div>

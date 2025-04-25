@@ -232,21 +232,21 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
       </div>
 
       <div className="rounded-md border">
-        <Table className="rounded-xl overflow-hidden w-full">
-          <TableHeader className="bg-purple-50 dark:bg-gray-800">
-            <TableRow>
-              <TableHead className="text-xs md:text-sm">Thời gian</TableHead>
-              <TableHead className="text-xs md:text-sm">Giá gốc</TableHead>
-              <TableHead className="text-xs md:text-sm">Giá bán</TableHead>
-              <TableHead className="text-xs md:text-sm">Lợi nhuận</TableHead>
-              <TableHead className="text-xs md:text-sm">Ghi chú</TableHead>
+      <Table className="rounded-xl overflow-hidden w-full">
+        <TableHeader className="bg-purple-50 dark:bg-gray-800">
+          <TableRow>
+            <TableHead className="text-xs md:text-sm">Thời gian</TableHead>
+            <TableHead className="text-xs md:text-sm">Giá gốc</TableHead>
+            <TableHead className="text-xs md:text-sm">Giá bán</TableHead>
+            <TableHead className="text-xs md:text-sm">Lợi nhuận</TableHead>
+            <TableHead className="text-xs md:text-sm">Ghi chú</TableHead>
               <TableHead className="text-xs md:text-sm w-24">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
             {getCurrentPageTransactions().map((t) => (
-              <TableRow key={t.id} className="hover:bg-purple-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                <TableCell className="whitespace-nowrap text-xs md:text-sm text-gray-600 dark:text-gray-400 py-2 md:py-4">
+            <TableRow key={t.id} className="hover:bg-purple-50/50 dark:hover:bg-gray-800/50 transition-colors">
+              <TableCell className="whitespace-nowrap text-xs md:text-sm text-gray-600 dark:text-gray-400 py-2 md:py-4">
                   {new Date(t.created_at).toLocaleString('vi-VN', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -254,15 +254,15 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
                     month: '2-digit',
                     year: 'numeric'
                   })}
-                </TableCell>
-                <TableCell className="text-xs md:text-sm py-2 md:py-4">{t.original_price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                <TableCell className="text-xs md:text-sm py-2 md:py-4">{t.selling_price.toLocaleString('vi-VN')} VNĐ</TableCell>
-                <TableCell className="text-green-600 dark:text-green-400 font-semibold text-xs md:text-sm py-2 md:py-4">
-                  {t.profit.toLocaleString('vi-VN')} VNĐ
-                </TableCell>
-                <TableCell className="max-w-[100px] md:max-w-xs truncate text-xs md:text-sm text-gray-600 dark:text-gray-400 py-2 md:py-4">
-                  {t.note || "-"}
-                </TableCell>
+              </TableCell>
+              <TableCell className="text-xs md:text-sm py-2 md:py-4">{t.original_price.toLocaleString('vi-VN')} VNĐ</TableCell>
+              <TableCell className="text-xs md:text-sm py-2 md:py-4">{t.selling_price.toLocaleString('vi-VN')} VNĐ</TableCell>
+              <TableCell className="text-green-600 dark:text-green-400 font-semibold text-xs md:text-sm py-2 md:py-4">
+                {t.profit.toLocaleString('vi-VN')} VNĐ
+              </TableCell>
+              <TableCell className="max-w-[100px] md:max-w-xs truncate text-xs md:text-sm text-gray-600 dark:text-gray-400 py-2 md:py-4">
+                {t.note || "-"}
+              </TableCell>
                 <TableCell className="py-2 md:py-4">
                   <div className="flex gap-2">
                     <Button
@@ -283,10 +283,10 @@ const TransactionList = ({ transactions, onDeleteSuccess }: TransactionListProps
                     </Button>
                   </div>
                 </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
         {/* Phân trang */}
         {totalPages > 1 && (
