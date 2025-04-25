@@ -29,21 +29,13 @@ const ProfitCalculator = () => {
   const [resetDate, setResetDate] = useState<Date | null>(null);
 
   useEffect(() => {
-    // Load reset date from localStorage first
-    const savedResetDate = localStorage.getItem('resetDate');
-    let initialResetDate: Date | null = null;
-    if (savedResetDate) {
-      initialResetDate = new Date(savedResetDate);
-      setResetDate(initialResetDate);
-    } 
-
-    // Then fetch transactions
+    fetchResetDate();
     fetchTransactions();
 
-    // Thiết lập subscription realtime
+    // Thiết lập subscription realtime cho cả transactions và reset_dates
     const channel = supabase.channel('db-changes', {
       config: {
-        broadcast: { self: true }, // Cho phép nhận sự kiện từ chính client này
+        broadcast: { self: true },
         presence: { key: '' },
       },
     });
@@ -52,17 +44,15 @@ const ProfitCalculator = () => {
       .on(
         'postgres_changes',
         {
-          event: '*', // Lắng nghe tất cả các sự kiện (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
           table: 'transactions'
         },
         async (payload) => {
           console.log('Realtime change received:', payload);
           
-          // Xử lý theo từng loại sự kiện
           switch (payload.eventType) {
             case 'INSERT': {
-              // Thêm giao dịch mới vào state
               const newTransaction: Transaction = {
                 id: payload.new.id,
                 created_at: new Date(payload.new.created_at),
@@ -77,14 +67,12 @@ const ProfitCalculator = () => {
             }
               
             case 'DELETE':
-              // Xóa giao dịch khỏi state
               setTransactions(prev => 
                 prev.filter(t => t.id !== payload.old.id)
               );
               break;
               
             case 'UPDATE': {
-              // Cập nhật giao dịch trong state
               const updatedTransaction: Transaction = {
                 id: payload.new.id,
                 created_at: new Date(payload.new.created_at),
@@ -101,9 +89,20 @@ const ProfitCalculator = () => {
             }
               
             default:
-              // Nếu không nhận diện được sự kiện, tải lại toàn bộ dữ liệu
               await fetchTransactions();
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reset_dates'
+        },
+        async (payload) => {
+          console.log('Reset date change received:', payload);
+          await fetchResetDate();
         }
       )
       .subscribe(async (status) => {
@@ -111,22 +110,43 @@ const ProfitCalculator = () => {
         
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
-          // Tải lại dữ liệu khi subscription được thiết lập
           await fetchTransactions();
+          await fetchResetDate();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.log('Subscription closed or error, attempting to reconnect...');
-          // Thử kết nối lại sau 2 giây
           setTimeout(() => {
             channel.subscribe();
           }, 2000);
         }
       });
 
-    // Cleanup subscription khi component unmount
     return () => {
       channel.unsubscribe();
     };
   }, []);
+
+  const fetchResetDate = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('reset_dates')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error fetching reset date:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setResetDate(new Date(data[0].created_at));
+      } else {
+        setResetDate(null);
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching reset date:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -179,15 +199,34 @@ const ProfitCalculator = () => {
       .reduce((sum, t) => sum + t.profit_per_person, 0);
   };
 
-  const handleResetTotals = () => {
-    const newResetDate = new Date();
-    setResetDate(newResetDate);
-    // Save reset date to localStorage
-    localStorage.setItem('resetDate', newResetDate.toISOString());
-    toast({
-      title: "Đã reset tổng tiền",
-      description: "Tổng tiền Cường và Long đã được reset về 0",
-    });
+  const handleResetTotals = async () => {
+    try {
+      const { error } = await supabase
+        .from('reset_dates')
+        .insert([{ created_at: new Date().toISOString() }]);
+
+      if (error) {
+        console.error('Error resetting totals:', error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể reset tổng tiền",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Đã reset tổng tiền",
+        description: "Tổng tiền Cường và Long đã được reset về 0",
+      });
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Lỗi không xác định",
+        description: "Đã xảy ra lỗi khi reset tổng tiền",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredTransactions = transactions.filter(t => {
