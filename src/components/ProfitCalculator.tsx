@@ -151,6 +151,9 @@ const ProfitCalculator = () => {
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
+      // Đảm bảo resetDate đã được fetch trước
+      await fetchResetDate();
+      
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -188,14 +191,28 @@ const ProfitCalculator = () => {
   };
 
   const calculateTotalForCuong = () => {
+    if (!resetDate) {
+      return transactions.reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
+    }
+    
     return transactions
-      .filter(t => !resetDate || t.created_at >= resetDate)
+      .filter(t => {
+        const transactionDate = new Date(t.created_at);
+        return transactionDate >= resetDate;
+      })
       .reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
   };
 
   const calculateTotalForLong = () => {
+    if (!resetDate) {
+      return transactions.reduce((sum, t) => sum + t.profit_per_person, 0);
+    }
+    
     return transactions
-      .filter(t => !resetDate || t.created_at >= resetDate)
+      .filter(t => {
+        const transactionDate = new Date(t.created_at);
+        return transactionDate >= resetDate;
+      })
       .reduce((sum, t) => sum + t.profit_per_person, 0);
   };
 
