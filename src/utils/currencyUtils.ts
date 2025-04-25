@@ -9,7 +9,13 @@ export const normalizeVNDAmount = (input: string): number => {
   const number = parseFloat(input);
   if (isNaN(number)) return 0;
   
-  // Luôn nhân với 1000 vì giả định người dùng nhập theo đơn vị nghìn
+  // Kiểm tra nếu giá trị đã được nhân với 1000 trước đó
+  // Nếu giá trị lớn hơn 1000, giả sử nó đã được nhân với 1000
+  if (number >= 1000) {
+    return number;
+  }
+  
+  // Nếu giá trị nhỏ hơn 1000, nhân với 1000
   return number * 1000;
 };
 
