@@ -26,10 +26,10 @@ const ProfitCalculator = () => {
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const [dateFilter, setDateFilter] = useState("");
-  const [resetDate, setResetDate] = useState<Date | null>(null);
+  const [resetTimestamp, setResetTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchResetDate();
+    fetchResetTimestamp();
     fetchTransactions();
 
     // Thiết lập subscription realtime cho cả transactions và reset_dates
@@ -102,7 +102,7 @@ const ProfitCalculator = () => {
         },
         async (payload) => {
           console.log('Reset date change received:', payload);
-          await fetchResetDate();
+          await fetchResetTimestamp();
         }
       )
       .subscribe(async (status) => {
@@ -111,7 +111,7 @@ const ProfitCalculator = () => {
         if (status === 'SUBSCRIBED') {
           console.log('Successfully subscribed to changes');
           await fetchTransactions();
-          await fetchResetDate();
+          await fetchResetTimestamp();
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           console.log('Subscription closed or error, attempting to reconnect...');
           setTimeout(() => {
@@ -125,7 +125,7 @@ const ProfitCalculator = () => {
     };
   }, []);
 
-  const fetchResetDate = async () => {
+  const fetchResetTimestamp = async () => {
     try {
       const { data, error } = await supabase
         .from('reset_dates')
@@ -134,25 +134,27 @@ const ProfitCalculator = () => {
         .limit(1);
 
       if (error) {
-        console.error('Error fetching reset date:', error);
+        console.error('Error fetching reset timestamp:', error);
         return;
       }
 
       if (data && data.length > 0) {
-        setResetDate(new Date(data[0].created_at));
+        // Lưu timestamp thay vì Date object
+        const timestamp = new Date(data[0].created_at).getTime();
+        setResetTimestamp(timestamp);
       } else {
-        setResetDate(null);
+        setResetTimestamp(null);
       }
     } catch (error) {
-      console.error('Unexpected error fetching reset date:', error);
+      console.error('Unexpected error fetching reset timestamp:', error);
     }
   };
 
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
-      // Đảm bảo resetDate đã được fetch trước
-      await fetchResetDate();
+      // Đảm bảo resetTimestamp đã được fetch trước
+      await fetchResetTimestamp();
       
       const { data, error } = await supabase
         .from('transactions')
@@ -191,28 +193,22 @@ const ProfitCalculator = () => {
   };
 
   const calculateTotalForCuong = () => {
-    if (!resetDate) {
+    if (!resetTimestamp) {
       return transactions.reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
     }
     
     return transactions
-      .filter(t => {
-        const transactionDate = new Date(t.created_at);
-        return transactionDate >= resetDate;
-      })
+      .filter(t => t.created_at.getTime() >= resetTimestamp)
       .reduce((sum, t) => sum + t.original_price + t.profit_per_person, 0);
   };
 
   const calculateTotalForLong = () => {
-    if (!resetDate) {
+    if (!resetTimestamp) {
       return transactions.reduce((sum, t) => sum + t.profit_per_person, 0);
     }
     
     return transactions
-      .filter(t => {
-        const transactionDate = new Date(t.created_at);
-        return transactionDate >= resetDate;
-      })
+      .filter(t => t.created_at.getTime() >= resetTimestamp)
       .reduce((sum, t) => sum + t.profit_per_person, 0);
   };
 
