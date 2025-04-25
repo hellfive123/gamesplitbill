@@ -29,6 +29,15 @@ const ProfitCalculator = () => {
   const [resetDate, setResetDate] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Load reset date from localStorage first
+    const savedResetDate = localStorage.getItem('resetDate');
+    let initialResetDate: Date | null = null;
+    if (savedResetDate) {
+      initialResetDate = new Date(savedResetDate);
+      setResetDate(initialResetDate);
+    } 
+
+    // Then fetch transactions
     fetchTransactions();
 
     // Thiết lập subscription realtime
@@ -171,7 +180,10 @@ const ProfitCalculator = () => {
   };
 
   const handleResetTotals = () => {
-    setResetDate(new Date());
+    const newResetDate = new Date();
+    setResetDate(newResetDate);
+    // Save reset date to localStorage
+    localStorage.setItem('resetDate', newResetDate.toISOString());
     toast({
       title: "Đã reset tổng tiền",
       description: "Tổng tiền Cường và Long đã được reset về 0",
